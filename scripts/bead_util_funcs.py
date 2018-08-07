@@ -342,10 +342,10 @@ def get_hdf5_time(fname):
 
 
 def sudo_call(fn, *args):
-    with open("/home/charles/some_test.py", "wb") as f:
+    with open("/home/arider/some_test.py", "wb") as f:
         f.write( inspect.getsource(fn) )
         f.write( "%s(*%r)" % (fn.__name__,args) )
-    out = subprocess.check_output("sudo python /home/charles/some_test.py", shell=True)
+    out = subprocess.check_output("sudo python /home/arider/some_test.py", shell=True)
     print out
 
 
@@ -637,10 +637,15 @@ def extract_quad(quad_dat, timestamp, verbose=False):
         # it's a 64 bit object
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
-            high = np.uint32(quad_dat[ind])
-            low = np.uint32(quad_dat[ind+1])
-            dattime = (high.astype(np.uint64) << np.uint64(32)) \
+            try:
+                high = np.uint32(quad_dat[ind])
+                low = np.uint32(quad_dat[ind+1])
+
+                dattime = (high.astype(np.uint64) << np.uint64(32)) \
                       + low.astype(np.uint64)
+            except:
+                print "deinterleaving failed"
+                dattime = 0.
 
         # Time stamp from FPGA is a U64 with the UNIX epoch 
         # time in nanoseconds, synced to the host's clock
@@ -720,6 +725,10 @@ def extract_xyz(xyz_dat, timestamp, verbose=False):
             low = np.uint32(xyz_dat[ind+1])
             dattime = (high.astype(np.uint64) << np.uint64(32)) \
                       + low.astype(np.uint64)
+            #print "datetime,", float(dattime)*10**-9
+            #print "timesta, ", timestamp
+            #print "difference,", np.abs(timestamp - float(dattime) * 10**(-9)) 
+            #print "diff:", diff_thresh 
 
         # Time stamp from FPGA is a U64 with the UNIX epoch 
         # time in nanoseconds, synced to the host's clock
@@ -734,6 +743,7 @@ def extract_xyz(xyz_dat, timestamp, verbose=False):
     # wit thhe appropriate decimation of the primary array
     xyz_time_high = np.uint32(xyz_dat[tind::11])
     xyz_time_low = np.uint32(xyz_dat[tind+1::11])
+
     if len(xyz_time_low) != len(xyz_time_high):
         xyz_time_high = xyz_time_high[:-1]
 
@@ -746,16 +756,16 @@ def extract_xyz(xyz_dat, timestamp, verbose=False):
     
     sync = np.int32(xyz_dat[tind+7::11])
 
-    #plt.plot(np.int32(xyz_dat[tind+1::9]).astype(np.uint64) << np.uint64(32) \
-    #         + np.int32(xyz_dat[tind::9]).astype(np.uint64) )
-    #plt.show()
+    xyz_time = np.left_shift(xyz_time_high.astype(np.uint64), np.uint64(32)) \
+                  + xyz_time_low.astype(np.uint64)
 
-    # Since the FIFO read request is asynchronous, sometimes
-    # the timestamp isn't first to come out, but the total amount of data
-    # read out is a multiple of 5 (2 time + X + Y + Z) so the Z
-    # channel usually  ends up with less samples.
-    # The following is coded very generally
-
+    xyz = [xyz_dat[tind+4::11], xyz_dat[tind+5::11], xyz_dat[tind+6::11]]
+    xy_2 = [xyz_dat[tind+2::11], xyz_dat[tind+3::11]]
+    xyz_fb = [xyz_dat[tind+8::11], xyz_dat[tind+9::11], xyz_dat[tind+10::11]]
+    
+    sync = np.int32(xyz_dat[tind+7::11])
+ 
+ 
     min_len = 10.0**9  # Assumes we never more than 1 billion samples
     for ind in [0,1,2]:
         if len(xyz[ind]) < min_len:
@@ -777,6 +787,30 @@ def extract_xyz(xyz_dat, timestamp, verbose=False):
     xyz = np.array(xyz)
     xyz_fb = np.array(xyz_fb)
     xy_2 = np.array(xy_2)
+    '''except:
+     #   print "even more stuff is fucked"
+        xyz_time = 0.
+        xyz = 0.
+
+        xy_2 = 0.
+
+        xyz_fb = 0.
+
+        sync = 0.
+    
+
+        return xyz_time, xyz, xy_2, xyz_fb, sync'''
+
+    #plt.plot(np.int32(xyz_dat[tind+1::9]).astype(np.uint64) << np.uint64(32) \
+    #         + np.int32(xyz_dat[tind::9]).astype(np.uint64) )
+    #plt.show()
+
+    # Since the FIFO read request is asynchronous, sometimes
+    # the timestamp isn't first to come out, but the total amount of data
+    # read out is a multiple of 5 (2 time + X + Y + Z) so the Z
+    # channel usually  ends up with less samples.
+    # The following is coded very generally
+
 
     return xyz_time, xyz, xy_2, xyz_fb, sync
 

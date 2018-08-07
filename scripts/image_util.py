@@ -18,6 +18,7 @@ import beam_profile as bf
 import scipy.ndimage.filters as ndf
 import cv2
 from scipy.signal import argrelextrema
+from sklearn.cluster import MeanShift, estimate_bandwidth
 #Functions for use in the class representing image data.
 
 b, a = signal.butter(4, [.005, .5], btype = 'bandpass')
@@ -275,27 +276,25 @@ class ImageGrid:
         self.indArr = self.ind_arr()
         self.shape = np.shape(self.indArr)
 
-    def groupAxis(self, axis, thresh = 0.25):
+    def groupAxis(self, axis, thresh = 2.5):
         '''groups inds of images into rows or columns from nano 
            positioning stage measurements. Sorted into group when
            difference below thresh.'''
         pax = self.nanoPs[axis, :] #position array
-        sortInds = np.argsort(pax) #sort index array
+        args = np.argsort(pax)
         inds = [] #initialize list to store lists of inds for each group
-        rowCol = [] #initialize list for each group
-        init_p = pax[sortInds[0]] 
-        for i in sortInds:
-            if pax[i] - init_p>thresh:
-                inds.append(rowCol)
-                rowCol = [i]
-                init_p = pax[i]
-            if i == sortInds[-1]:
-                rowCol.append(i)
-                inds.append(rowCol)
+        cinds = [args[0]]
+        for a in args[1:]:
+            if pax[a] - np.mean(pax[cinds])>thresh:
+                #print pax[a] - np.mean(cinds)
+                #print pax[cinds]
+                inds.append(cinds)
+                cinds = [a]
             else:
-                rowCol.append(i)
+                cinds.append(a)
 
         return inds
+
     def measure_trap_y(self, make_plot = True, examine = False):
         '''measures the centering of the attractor relative to the trap'''
         dys = np.zeros(len(self.images))
@@ -321,7 +320,7 @@ class ImageGrid:
 
 
 
-    def ind_arr(self, thresh = 0.25):
+    def ind_arr(self, thresh = 2.5):
         '''returns a 2d nump array of image indicies indexed by image  
            row and column. If there are multiple images at the same grid
            location it returns the first.'''
@@ -335,7 +334,6 @@ class ImageGrid:
             for j in range(ny):
                 ind = list(set(xinds[i]).intersection(yinds[j]))
                 indArr[i, j] = ind[0]
-
         return indArr
 
 
@@ -349,8 +347,17 @@ class ImageGrid:
                                         makePlot = makePlots)
         xShifts = np.array(map(mx, self.images))
         yShifts = np.array(map(my, self.images))
-        cent_im = np.argmin((1-yShifts[:, 1])**2 + (1-xShifts[:, 1])**2)
-        cent_ind = zip(*np.where(self.indArr == cent_im))[0]
+        #plt.plot(xShifts[:, 0], 'o', label = "x")
+        #plt.plot(yShifts[:, 0], 'o', label = 'y')
+        #plt.show()
+        cent_im = np.argmin((yShifts[:, 0])**2 + (xShifts[:, 0])**2)
+        try:
+            cent_ind = zip(*np.where(self.indArr == cent_im))[0]
+        except IndexError:
+            print "cant find corresponding image"
+            return np.array([[np.nan, np.nan], \
+                            [np.nan, np.nan]])
+ 
         # determine edge cases 
         bxl = cent_ind[0]>0 
         bxh = cent_ind[0] < self.shape[0]-1

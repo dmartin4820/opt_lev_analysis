@@ -17,7 +17,7 @@ maxfiles = 500
 use_dir = False
 
 allfiles = \
-['/data/20180704/bead1/grav_data/shield/turbo_mbar_xyzcool_stage-X77um-Y40um-Z25um_Ydrive40umAC-17Hz_0.h5']
+['/data/20180807/bead1/1_6mbar_zcool2.h5']
 
 #labs = ['1','2', '3']
 

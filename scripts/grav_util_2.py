@@ -291,12 +291,31 @@ def build_mod_grav_funcs(theory_data_dir):
 
     #return gfuncs, yukfuncs, lambdas, lims
 
-def yukfft_template(yukfuncs, ginds, lambind, full_pts):
-    '''Generates a 3d frequency domain yukawa template for fitting.'''
-    yukfft = [[], [], []]
-    for resp in [0,1,2]:
-        yukforcet = yukfuncs[resp][lambind](full_pts*1.0e-6)
-        yukfft[resp] = np.fft.rfft(yukforcet)[ginds]
+def yukfft_template(yukfuncs, ginds, lambind, full_pts, fast_template = True, fast_axis = 1, disc = 1E-6):
+    '''Generates a 3d frequency domain yukawa template for fitting. If fast template is true, generates a 1d interpolating
+    function over the drive vector sampling the full interpolating function with disc spacing'''
+    yukfft = np.zeros((3, sum(ginds)), dtype = complex)
+    full_ptsm = full_pts*1.0e-6
+    axs = np.arange(3)
+    if fast_template:
+        const_axs = axs[axs != fast_axis]
+        dc_ps = np.mean(full_ptsm[:, const_axs], axis = 0)
+        drive_range = np.arange(np.min(full_ptsm[:, fast_axis]) - 5.*disc, np.max(full_ptsm[:, fast_axis]) + 5.*disc, disc)
+        pts_red = np.ones((len(drive_range), 3))
+        pts_red[:, const_axs] *= dc_ps
+        pts_red[:, fast_axis] = drive_range
+        #make interpolating function for force at each axis
+        def interp_ax(ax):
+            return interp.interp1d(drive_range, yukfuncs[ax][lambind](pts_red), assume_sorted = True)
+
+        f_ax = lambda ax: interp_ax(ax)(full_ptsm[:, fast_axis])
+        for i in axs:
+            full_fft = np.fft.rfft(f_ax(i))
+            yukfft[i, :] =full_fft[ginds]
+    else:
+        for resp in axs:
+            yukforcet = yukfuncs[resp][lambind](full_ptsm)
+            yukfft[resp] = np.fft.rfft(yukforcet)[ginds]
     return np.array(yukfft)
 
 def plot_histogram_fit(data):
@@ -405,8 +424,7 @@ class FileData:
             return
 
         ## Get the notch filter
-        cantfilt = self.df.get_boolean_cantfilt(ext_cant=ext_cant, nharmonics=nharmonics, \
-                                                harms=harms, width=width)
+        cantfilt = self.df.get_boolean_cantfilt(ext_cant=ext_cant, nharmonics=nharmonics, harms=harms, width=width)
         self.ginds = cantfilt['ginds']
         self.fund_ind = cantfilt['fund_ind']
         self.drive_freq = cantfilt['drive_freq']
@@ -480,7 +498,6 @@ class FileData:
                       columns = ["fit coefs", "sigmas", "fit success", "NLL_min"], \
                       inject = [], fake_signal = False, plot_fit = False, \
                       dir_labels = ['x', 'y', 'z']):
-                      inject = [], fake_signal = False):
         '''fits x, y, and z force data separately. Returns a pandas Series object containing
            the results of the fit. If there is an injection template, it is added to the data.
            if white noise is True, replaces the data with a signal drawn from a distribution 
@@ -567,7 +584,7 @@ class AggregateData:
        has some methods that work on each object in a loop.'''
 
     
-    def __init__(self, fnames, p0_bead=[16,0,20], tophatf=2500, harms=[]):
+    def __init__(self, fnames, p0_bead=[16,0,20], tophatf=2500):
         
         self.fnames = fnames
         self.p0_bead = p0_bead
@@ -582,7 +599,7 @@ class AggregateData:
             # Initialize FileData obj, extract the data, then close the big file
             try:
                 new_obj = FileData(name, tophatf=tophatf)
-                new_obj.extract_data(harms=harms)
+                new_obj.extract_data()#harms=harms)
                 new_obj.load_position_and_bias()
 
                 new_obj.close_datafile()
@@ -802,16 +819,20 @@ class AggregateData:
         for objind in objinds:
             #create data frame holding info from ith file data object
             file_data_obj = self.file_data_objs[objind]
+            #make template if necessary
+            if not sum((dft.ax1pos == file_data_obj.ax1pos)*(dft.ax2pos == file_data_obj.ax2pos)) or temp_indx == 0:
+                full_pts  = file_data_obj.generate_pts(self.p0_bead)
+                temp_dat = self.makeTemplates(file_data_obj.ginds, full_pts)
+                df_templates.loc[temp_indx] = [file_data_obj.ax1pos, file_data_obj.ax2pos, temp_dat]
+                print "generating template " + str(temp_indx)
+                temp_indx += 1
+
+            #add to the DataFrame
             dft.loc[objind] = [file_data_obj.ax1pos, file_data_obj.ax2pos, file_data_obj.time, \
                     file_data_obj.phi_cm, file_data_obj.datffts, file_data_obj.daterrs]
 
             #get file specific information
             ## Get sep and height from axis positi
-            if not sum((dft["ax1pos"] == file_data_obj.ax1pos)*(dft["ax2pos"] == file_data_obj.ax2pos)) or temp_indx == 0:
-                full_pts  = file_data_obj.generate_pts(self.p0_bead)
-                temp_dat = self.makeTemplates(file_data_obj.ginds, full_pts)
-                df_templates.loc[temp_indx] = [file_data_obj.ax1pos, file_data_obj.ax2pos, temp_dat]
-                temp_indx += 1
 
         return pd.Series([dft, df_templates], index = ["data", "templates"])
 

@@ -155,8 +155,8 @@ class DataFile:
         self.fname = fname
         #print fname
 
-        self.time = attribs["Time"]   # unix epoch time in ns (time.time() * 10**9)
-
+        self.time = np.int64(attribs["Time"])   # unix epoch time in ns (time.time() * 10**9)
+        #print self.time
         if self.time == 0:
             print 'Bad time...', self.time
             self.FIX_TIME = True
@@ -185,19 +185,27 @@ class DataFile:
             except:
                 self.encode_bits = []
 
-            fpga_dat = sync_and_crop_fpga_data(fpga_dat, self.time, self.nsamp, \
+            try:
+
+                fpga_dat = sync_and_crop_fpga_data(fpga_dat, self.time, self.nsamp, \
                                                self.encode_bits, plot_sync=plot_sync)
+            except:
+                print "loading FPGA data failed"
+                fpga_dat = {"sync":np.zeros(10), 'xyz_time':0, 'xyz':np.zeros(10), 'xy_2':np.zeros(10), \
+                        'xy_2':np.zeros(10), 'fb':np.zeros(10), 'sync':np.zeros(10), \
+                        'quad_time':np.zeros(10), 'amp':np.zeros(10), 'phase':np.zeros(10)}
+
 
             # IT CAN ONLY FIX THE TIME ATTRIB IF THE PARENT SCRIPT IS EXECUTED
             # AS ROOT OR ANY SUPERUSER
             if self.FIX_TIME:
 
-                self.time = fpga_dat['xyz_time'][0]
+                self.time = np.int64(fpga_dat['xyz_time'][0])
                 assert self.time != 0
 
                 print 'New (good) time...', self.time
 
-                sudo_call(fix_time, self.fname, self.time)
+                #sudo_call(fix_time, self.fname, float(self.time))
 
             self.sync_data = fpga_dat['sync']
 
@@ -656,7 +664,8 @@ class DataFile:
             self.pos_data[resp] = signal.filtfilt(b, a, self.pos_data[resp])
 
 
-    def diagonalize(self, date='', interpolate=False, maxfreq=1000, plot=False):
+    def diagonalize(self, date='', interpolate=False, maxfreq=1000, plot=False,
+            defaulttf = '/calibrations/transfer_funcs/20180704.trans'):
         '''Diagonalizes data, adding a new attribute to the DataFile object.
 
            INPUTS: date, date in form YYYYMMDD if you don't want to use
@@ -684,8 +693,9 @@ class DataFile:
         try:
             Hfunc = pickle.load(open(tf_path, 'rb'))
         except:
-            print "Couldn't automatically find correct TF"
-            return
+            print "Couldn't automatically find correct TF using default"
+            Hfunc =  pickle.load(open(defaulttf, 'rb'))
+            #return
 
         # Generate FFT frequencies for given data
         N = len(self.pos_data[0])
