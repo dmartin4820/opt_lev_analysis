@@ -17,9 +17,9 @@ maxfiles = 500
 use_dir = False
 
 allfiles = \
-['/data/20180807/bead1/1_6mbar_zcool2.h5']
+['/data/20180807/bead1/1_6mbar_zcool.h5', '/data/20180807/bead1/1_6mbar_xyzcool.h5']
 
-#labs = ['1','2', '3']
+labs = ['z','xyz', '3']
 
 data_axes = [0,1,2]
 fb_axes = []
@@ -48,7 +48,7 @@ file_inds = (0, 1800)
 userNFFT = 2**12
 diag = False
 
-fullNFFT = True
+fullNFFT = False
 
 #window = mlab.window_hanning
 window = mlab.window_none
