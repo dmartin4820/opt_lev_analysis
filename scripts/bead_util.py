@@ -148,16 +148,18 @@ class DataFile:
         self.daqmx_time = np.linspace(0,self.nsamp-1,self.nsamp) * (1.0/self.fsamp) \
                                * (10**9) + self.time
 
-        fpga_fname = fname[:-3] + '_fpga.h5'
-        fpga_dat = get_fpga_data(fpga_fname, verbose=False, timestamp=self.time)
-        self.encode_bits = attribs["encode_bits"]
+        if load_FPGA:
+            fpga_fname = fname[:-3] + '_fpga.h5'
+            fpga_dat = get_fpga_data(fpga_fname, verbose=False, timestamp=self.time)
+            self.encode_bits = attribs["encode_bits"]
 
-        fpga_dat = sync_and_crop_fpga_data(fpga_dat, self.time, self.nsamp, \
-                                           self.encode_bits)
+            fpga_dat = sync_and_crop_fpga_data(fpga_dat, self.time, self.nsamp, \
+                                               self.encode_bits)
 
+            print fpga_dat
             self.pos_data = fpga_dat['xyz']
             self.pos_time = fpga_dat['xyz_time']
-        
+
             # Load quadrant and backscatter amplitudes and phases
             self.amp = fpga_dat['amp']
             self.phase = fpga_dat['phase']
@@ -168,7 +170,8 @@ class DataFile:
         self.date = fname.split('/')[2]
         dat = dat[configuration.adc_params["ignore_pts"]:, :]
 
-        ###self.pos_data = np.transpose(dat[:, configuration.col_labels["bead_pos"]])
+        if not load_FPGA:
+            self.pos_data = np.transpose(dat[:, configuration.col_labels["bead_pos"]])
 
         self.cant_data = np.transpose(dat[:, configuration.col_labels["stage_pos"]])
         self.electrode_data = np.transpose(dat[:, configuration.col_labels["electrodes"]])

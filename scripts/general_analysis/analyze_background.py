@@ -23,8 +23,8 @@ cbead = '/data/20180404/bead2'
 #dir1 = cbead + '/grav_data/ydrive_1sep_1height_shield-0V_cant-0mV_minimalfb'
 
 #dir1 = cbead + '/grav_data/tumbling/ydrive_1sep_1height_cant0mV_noshield'
-dir1 = cbead + '/grav_data/ydrive_1sep_1height_cant-3Vac-1750Hz_noshield'
-dir1 = cbead + '/grav_data/ydrive_1sep_1height_cant-3Vac-1750Hz_noshield_farback'
+#dir1 = cbead + '/grav_data/ydrive_1sep_1height_cant-3Vac-1750Hz_noshield'
+#dir1 = cbead + '/grav_data/ydrive_1sep_1height_cant-3Vac-1750Hz_noshield_farback'
 dir1 = cbead + '/grav_data/shield_out/ydrive_1sep_1height_cant-0mV-farback_shield-3Vac-1750Hz-initpos'
 
 load = False #True
@@ -40,7 +40,8 @@ harms_to_track = [1,2,3]
 #harms_to_track = [1,2,3,4,5,6,7,8,9,10]
 
 harms_to_label = [1,2,3,21,35]
-harms_to_label = range(10)
+harms_to_label = range(8)
+xlim = (10, 200)
 
 sub_cant_phase = True
 plot_first_drive = False
@@ -54,8 +55,8 @@ minsep = 15
 
 #ylim = (1e-21, 1e-14)
 #ylim = (1e-7, 1e-1)
-ylim = ()
-arrow_fac = 5
+ylim = (2e-17, 2e-13)
+arrow_fac = 20
 
 lpf = 2500   # Hz
 
@@ -107,7 +108,8 @@ for xind, xpos in enumerate(xposvec):
     backgrounds[xpos] = sepXbackground
 
 backgrounds[xposvec[0]].plot_background(harms_to_plot=harms_to_track, plot_temp=False, \
-                                        harms_to_label=harms_to_label)
+                                        harms_to_label=harms_to_label, xlim=xlim, \
+                                        ylim=ylim, arrow_fac=arrow_fac)
 
 
 nfiles_per_sep = backgrounds[xposvec[0]].nfiles

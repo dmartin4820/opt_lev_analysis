@@ -200,7 +200,7 @@ class Background:
 
             # Load data
             df = bu.DataFile()
-            df.load(fil)
+            df.load(fil, load_FPGA=False)
             if df.badfile:
                 continue
             try:
@@ -214,7 +214,7 @@ class Background:
                 init_time = df.time
                 times[0] = 0.0
             else:
-                times[fil_ind] = (df.time - init_time).total_seconds()
+                times[fil_ind] = (df.time - init_time)
 
             df.calibrate_stage_position()
 
@@ -246,7 +246,7 @@ class Background:
 
             harm_freqs = freqs[ginds]
             for axind, ax in enumerate(data_axes):
-                print ax, df.conv_facs[ax]
+                #print ax, df.conv_facs[ax]
 
                 asd = np.abs( np.fft.rfft(df.pos_data[ax]) ) * \
                       bu.fft_norm(Nsamp, df.fsamp) * df.conv_facs[ax]
@@ -347,13 +347,16 @@ class Background:
 
     def plot_background(self, harms_to_plot=[1,2,3], harms_to_label=[1,2,3], \
                         data_axes=[0,1,2], ax_labs = {0: 'X', 1: 'Y', 2: 'Z'}, \
-                        ylim=(), arrow_fac=5, unwrap=False, plot_temp=False):
+                        ylim=(), arrow_fac=5, unwrap=False, plot_temp=False, \
+                        xlim=()):
         '''Plots the output from the analyze background method
 
            INPUTS: 
 
            OUTPUTS: none, plots stuff
         '''
+
+        plt.rcParams.update({'font.size': 14})
 
         #harms_to_plot = [x + 1 for x in range(len(self.ginds))]
 
@@ -411,13 +414,13 @@ class Background:
             avgaxarr[axind].grid(alpha=0.5)
             diag_avgaxarr[axind].grid(alpha=0.5)
 
-            lab = ax_labs[ax] + ' sqrt(PSD) [N/rt(Hz)]'
-            avgaxarr[axind].set_ylabel(lab, fontsize=10)
-            diag_avgaxarr[axind].set_ylabel(lab, fontsize=10)
+            lab = ax_labs[ax] + ' $\sqrt{\mathrm{PSD}}$ [N/$\sqrt{\mathrm{Hz}}$]'
+            avgaxarr[axind].set_ylabel(lab, fontsize=14)
+            diag_avgaxarr[axind].set_ylabel(lab, fontsize=14)
 
             if ax == data_axes[-1]:
-                avgaxarr[axind].set_xlabel('Frequency [Hz]', fontsize=10)
-                diag_avgaxarr[axind].set_xlabel('Frequency [Hz]', fontsize=10)
+                avgaxarr[axind].set_xlabel('Frequency [Hz]', fontsize=14)
+                diag_avgaxarr[axind].set_xlabel('Frequency [Hz]', fontsize=14)
 
             arrow_tip = (drive_freq, \
                          self.avg_asd[axind][np.argmin(np.abs(self.freqs-drive_freq))]*1.2)
@@ -435,6 +438,13 @@ class Background:
                                           arrowprops=dict(facecolor='red', shrink=0.01, \
                                                           width=3, headwidth=6), \
                                           horizontalalignment='center')
+            if len(xlim):
+                avgaxarr[axind].set_xlim(*xlim)
+                diag_avgaxarr[axind].set_xlim(*xlim)
+
+            if len(ylim):
+                avgaxarr[axind].set_ylim(*ylim)
+                diag_avgaxarr[axind].set_ylim(*ylim)
 
             for harm in harms_to_label:
                 if harm == 1:
